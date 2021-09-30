@@ -12,6 +12,12 @@ from gensim.corpora.dictionary import Dictionary
 from collections import defaultdict
 from gensim.models.tfidfmodel import TfidfModel
 import matplotlib.pyplot as plt
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+from nltk.corpus import stopwords
+
+final_stopwords_list = stopwords.words('french')
+final_stopwords_list.extend(["cette","si", "tout","mais","cela", "bien","même","parce","ceux","plus","ãªtre","mãªme","aussi","sans","temp","comme","tous","pay","faut","fait","an","quand","alors","faire","veux","class","non","oui","rien","leurs","vie","lã","va","toutes","dire","dit","peut","encore","entre","depuis","doit","jamais","dont","deux","voilã","donc","moins","sarkozy","chirac","grand","corse","gauche","droite","car","peu","jospin","hollande","premier"])
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
@@ -21,7 +27,7 @@ discours.filenames = []
 discours.data = []
 
 # Folder Path
-path = "/home/tom/Documents/Cours/IA/tor_2021_24/discours/ex"
+path = "C:/Users/TomIbarreche/Documents/Epi/GitHub/Data/IA_Boot/discours/tous"
   
 # Change the directory
 os.chdir(path)
@@ -47,77 +53,52 @@ for file in os.listdir():
 
         create_bunch(file_path)
 
-
-my_dict = {}
-keys = []
-escapes = ''.join([chr(char) for char in range(1, 32)])
-translator = str.maketrans('', '', escapes)
-for i in discours["filenames"]:
-    keys.append(i)
-
-data = []
-for i in discours["data"]:
-    data.append(i)
+df = pd.read_csv("Alain.csv")
 
 
-#populate my dict with filenames and data with escaping \n
-for i in range(len(keys)):
-    my_dict[keys[i]] = data[i][0:40]#.translate(translator)
+a = 0
+
+wordnet_lemmatizer = WordNetLemmatizer()
+
+for i in range(len(discours["filenames"])):
+    df.loc[a] = [discours["filenames"][a], wordnet_lemmatizer.lemmatize(discours["data"][a].lower())]
+    a = a+1
 
 
 
-
-#df = pd.DataFrame.from_dict(my_dict, orient="index")
-
-
-def create_bag_of_words(data):
-
-    #tokenize with lower + only alphanumerique caract
-    tokens = [w for w in word_tokenize(data.lower()) if w.isalpha()] 
+bow_lemmatized = []
+strindg = ""
+values = []
+for content in df["content"]:
+    tokens = [w for w in word_tokenize(content.lower()) if w.isalpha()]
 
     #Remove franch stop words
     no_stops = [t for t in tokens if t not in stopwords.words('french')]
-
     #Lemmatize my data
-    wordnet_lemmatizer = WordNetLemmatizer()
+    bow_lemmatized += [wordnet_lemmatizer.lemmatize(t) for t in no_stops]
+    for t in bow_lemmatized:
+        strindg += " " + t
+    values.append(strindg)
+    bow_lemmatized = []
+    strindg = ""
 
-    bow_lemmatized = [wordnet_lemmatizer.lemmatize(t) for t in no_stops]
-    return bow_lemmatized
+doc = df["content"].values.astype("U")
 
-bow_lemmatized_speeches = []
-for speech in discours["data"]:
-    speech = speech.replace("a-","a ")
-    bow_lemmatized_speeches.append(create_bag_of_words(speech))
+vectorizer = TfidfVectorizer(stop_words=final_stopwords_list)
+features = vectorizer.fit_transform(values)
+k = 2
+model = KMeans(n_clusters=k, init="k-means++", max_iter=100, n_init=1)
+model.fit(features)
+df["cluster"] = model.labels_
+df["parti"] = ["D","G","G","D","C","G","G","G","C","C","G","G","G","D","D","G","D","D","D","D","G","G","G","G","D","G","G","D","D","G","G","G","C","C","G","G"]
+print(df)
+print("Cluster centroids: \n")
+order_centroids = model.cluster_centers_.argsort()[:, ::-1]
+terms = vectorizer.get_feature_names()
 
-
-dictionary = Dictionary(bow_lemmatized_speeches)
-
-corpus = [dictionary.doc2bow(speech) for speech in bow_lemmatized_speeches]
-
-bow_doc = sorted(corpus[0], key=lambda w: w[1], reverse=True)
-
-# Print the top 5 words of the document alongside the count
-for word_id, word_count in bow_doc[:5]:
-    print(word_id)
-    print(dictionary.get(word_id), word_count)
-
-total_word_count = defaultdict(int)
-
-for word_id, word_count in itertools.chain.from_iterable(corpus):
-    
-    total_word_count[word_id] += word_count
-
-
-tfidf = TfidfModel(corpus)
-
-tfidf_weights = tfidf[corpus[0]]
-tfidf_weights1 = tfidf[corpus[1]]
-
-
-df = pd.DataFrame(tfidf_weights)
-df1 = pd.DataFrame(tfidf_weights1)
-
-
-print(df.shape)
-print(df.head())
+for i in range(k):
+    print("Cluster %d:" % i)
+    for j in order_centroids[i, :2]: #print out 10 feature terms of each cluster
+        print (' %s' % terms[j])
+    print('------------')
 
