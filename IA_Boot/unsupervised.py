@@ -17,7 +17,7 @@ from sklearn.cluster import KMeans
 from nltk.corpus import stopwords
 
 final_stopwords_list = stopwords.words('french')
-final_stopwords_list.extend(["cette","si", "tout","mais","cela", "bien","même","parce","ceux","plus","ãªtre","mãªme","aussi","sans","temp","comme","tous","pay","faut","fait","an","quand","alors","faire","veux","class","non","oui","rien","leurs","vie","lã","va","toutes","dire","dit","peut","encore","entre","depuis","doit","jamais","dont","deux","voilã","donc","moins","sarkozy","chirac","grand","corse","gauche","droite","car","peu","jospin","hollande","premier"])
+final_stopwords_list.extend(["cette","si", "tout","mais","cela", "bien","même","parce","ceux","plus","ãªtre","mãªme","aussi","sans","temp","comme","tous","pay","faut","fait","an","quand","alors","faire","veux","class","non","oui","rien","leurs","vie","lã","va","toutes","dire","dit","peut","encore","entre","depuis","doit","jamais","dont","deux","voilã","donc","moins","sarkozy","chirac","grand","corse","gauche","droite","car","peu","jospin","hollande","premier","madelin","marseille","merci","remercie"])
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
@@ -27,7 +27,7 @@ discours.filenames = []
 discours.data = []
 
 # Folder Path
-path = "C:/Users/TomIbarreche/Documents/Epi/GitHub/Data/IA_Boot/discours/tous"
+path = "S:\Dev\DataAnalysis\Data\IA_Boot\discours\\tous"
   
 # Change the directory
 os.chdir(path)
@@ -63,11 +63,11 @@ wordnet_lemmatizer = WordNetLemmatizer()
 for i in range(len(discours["filenames"])):
     df.loc[a] = [discours["filenames"][a], wordnet_lemmatizer.lemmatize(discours["data"][a].lower())]
     a = a+1
-
+print(df)
 
 
 bow_lemmatized = []
-strindg = ""
+string = ""
 values = []
 for content in df["content"]:
     tokens = [w for w in word_tokenize(content.lower()) if w.isalpha()]
@@ -77,12 +77,11 @@ for content in df["content"]:
     #Lemmatize my data
     bow_lemmatized += [wordnet_lemmatizer.lemmatize(t) for t in no_stops]
     for t in bow_lemmatized:
-        strindg += " " + t
-    values.append(strindg)
+        string += " " + t
+    values.append(string)
     bow_lemmatized = []
-    strindg = ""
+    string = ""
 
-doc = df["content"].values.astype("U")
 
 vectorizer = TfidfVectorizer(stop_words=final_stopwords_list)
 features = vectorizer.fit_transform(values)
@@ -90,15 +89,13 @@ k = 2
 model = KMeans(n_clusters=k, init="k-means++", max_iter=100, n_init=1)
 model.fit(features)
 df["cluster"] = model.labels_
-df["parti"] = ["D","G","G","D","C","G","G","G","C","C","G","G","G","D","D","G","D","D","D","D","G","G","G","G","D","G","G","D","D","G","G","G","C","C","G","G"]
-print(df)
 print("Cluster centroids: \n")
 order_centroids = model.cluster_centers_.argsort()[:, ::-1]
 terms = vectorizer.get_feature_names()
 
 for i in range(k):
     print("Cluster %d:" % i)
-    for j in order_centroids[i, :2]: #print out 10 feature terms of each cluster
+    for j in order_centroids[i, :10]: #print out 10 feature terms of each cluster
         print (' %s' % terms[j])
     print('------------')
 
